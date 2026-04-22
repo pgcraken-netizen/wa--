@@ -12,11 +12,22 @@ const BOOK_H_BASE = 0.42;
 const BOOK_D = 0.25;
 const UNIT_W = 2.2;
 
-const woodMat = new THREE.MeshStandardMaterial({ color: WOOD_COLOR, roughness: 0.75 });
-const woodDarkMat = new THREE.MeshStandardMaterial({ color: WOOD_DARK, roughness: 0.8 });
+// materialはcreateShelvesのisMobileフラグで決定
+let woodMat, woodDarkMat;
+
+function initMats(isMobile) {
+  if (woodMat) return; // 初回のみ
+  if (isMobile) {
+    woodMat     = new THREE.MeshLambertMaterial({ color: WOOD_COLOR });
+    woodDarkMat = new THREE.MeshLambertMaterial({ color: WOOD_DARK });
+  } else {
+    woodMat     = new THREE.MeshStandardMaterial({ color: WOOD_COLOR, roughness: 0.75 });
+    woodDarkMat = new THREE.MeshStandardMaterial({ color: WOOD_DARK, roughness: 0.8 });
+  }
+}
 
 // per-member shelf unit
-function buildShelfUnit(member, side) {
+function buildShelfUnit(member, side, isMobile) {
   const group = new THREE.Group();
   const signX = side === 'left' ? 1 : -1; // books face inward
 
@@ -71,7 +82,7 @@ function buildShelfUnit(member, side) {
   const count = member.count;
   const totalBooks = Math.min(count, SHELF_ROWS * BOOKS_PER_ROW);
   if (totalBooks > 0) {
-    addBooks(group, totalBooks, member.hue, member.sat, side, count);
+    addBooks(group, totalBooks, member.hue, member.sat, side, count, isMobile);
   }
 
   // Member name label (canvas texture)
@@ -97,15 +108,16 @@ function buildShelfUnit(member, side) {
   return group;
 }
 
-function addBooks(group, totalBooks, hue, sat, side, rawCount) {
+function addBooks(group, totalBooks, hue, sat, side, rawCount, isMobile) {
   const geo = new THREE.BoxGeometry(BOOK_W, 1, BOOK_D);
   const dummy = new THREE.Object3D();
   const color = new THREE.Color();
 
-  // Build instanced mesh
-  const mat = new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0 });
+  const mat = isMobile
+    ? new THREE.MeshLambertMaterial()
+    : new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0 });
   const mesh = new THREE.InstancedMesh(geo, mat, totalBooks + 6);
-  mesh.castShadow = true;
+  mesh.castShadow = false;
 
   let idx = 0;
   const frameDepth = 0.32;
@@ -208,12 +220,13 @@ function buildLabel(name, count) {
   return t;
 }
 
-export function createShelves(side, cameraCtrl) {
+export function createShelves(side, cameraCtrl, isMobile = false) {
+  initMats(isMobile);
   const group = new THREE.Group();
   const members = MEMBERS.filter(m => m.wall === side);
 
   members.forEach(m => {
-    const unit = buildShelfUnit(m, side);
+    const unit = buildShelfUnit(m, side, isMobile);
     unit.position.set(0, 0, m.zOffset);
     group.add(unit);
   });

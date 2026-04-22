@@ -10,55 +10,47 @@ let renderer, scene, camera, cameraCtrl, audioSys, clock;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// ── veilは必ずフェード（JS成否に関わらず）──
-function fadeVeil(delay = 800) {
+function fadeVeil(delay = 600) {
   const veil = document.getElementById('veil');
-  setTimeout(() => {
-    veil.style.opacity = '0';
-    setTimeout(() => { veil.style.display = 'none'; }, 4500);
-  }, delay);
+  setTimeout(() => { veil.style.opacity = '0'; }, delay);
 }
 
-function showError(msg) {
-  const el = document.getElementById('error-msg');
-  if (el) { el.textContent = msg; el.style.display = 'block'; }
-  console.error('[WA読書部]', msg);
+function setStatus(msg) {
+  const el = document.getElementById('status-msg');
+  if (el) el.textContent = msg;
 }
 
 function checkWebGL() {
   try {
-    const canvas = document.createElement('canvas');
-    return !!(
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl')
-    );
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') || c.getContext('webgl') || c.getContext('experimental-webgl'));
   } catch { return false; }
 }
 
 function init() {
   if (!checkWebGL()) {
-    showError('このブラウザはWebGLに対応していません。Chrome / Safari 最新版でお試しください。');
+    setStatus('WebGL非対応です。Safari / Chromeの最新版をお試しください。');
     return;
   }
 
   try {
-    renderer = new THREE.WebGLRenderer({
-      antialias: !isMobile,
-      powerPreference: 'high-performance',
-    });
+    renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
-    renderer.shadowMap.enabled = !isMobile;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.85;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = false; // モバイルは常にoff
+    // iOS Safari 対策: toneMapping と colorSpace はモバイルでは設定しない
+    if (!isMobile) {
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.85;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+    }
     document.getElementById('canvas-container').appendChild(renderer.domElement);
   } catch (e) {
-    showError('描画エンジンの初期化に失敗しました: ' + e.message);
+    setStatus('描画エンジン初期化失敗: ' + e.message);
     return;
   }
+
+  setStatus('空間を展開中…');
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 60);
@@ -71,15 +63,16 @@ function init() {
 
   try {
     buildScene(scene, cameraCtrl, audioSys, isMobile);
+    setStatus('');
   } catch (e) {
-    showError('シーン構築エラー: ' + e.message);
-    // シーン構築失敗しても描画ループは続ける
+    setStatus('シーンエラー: ' + e.message);
+    console.error('[scene]', e);
   }
 
   try {
     setupOverlay(scene, cameraCtrl, audioSys);
   } catch (e) {
-    console.error('overlay error:', e);
+    console.error('[overlay]', e);
   }
 
   window._goHome = () => cameraCtrl.goHome();
@@ -88,7 +81,6 @@ function init() {
   if (!isMobile) renderer.domElement.addEventListener('mousemove', onMouseMove);
   renderer.domElement.addEventListener('touchstart', onTouch, { passive: true });
 
-  // ヒント
   setTimeout(() => {
     const hint = document.getElementById('hint');
     if (hint) {
@@ -113,10 +105,8 @@ function onClick(e) {
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(scene.children, true);
-
   for (const hit of hits) {
     const target = resolveTarget(hit.object);
     if (target) {
@@ -128,16 +118,11 @@ function onClick(e) {
       return;
     }
   }
-
-  if (cameraCtrl && cameraCtrl.currentPreset !== 'home') {
-    cameraCtrl.goHome();
-  }
+  if (cameraCtrl && cameraCtrl.currentPreset !== 'home') cameraCtrl.goHome();
 }
 
 function onTouch(e) {
-  if (e.touches.length === 1) {
-    onClick({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-  }
+  if (e.touches.length === 1) onClick({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
 }
 
 function onMouseMove(e) {
@@ -147,11 +132,8 @@ function onMouseMove(e) {
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(scene.children, true);
-  let found = false;
-  for (const hit of hits) {
-    if (resolveTarget(hit.object)) { found = true; break; }
-  }
-  renderer.domElement.style.cursor = found ? 'pointer' : 'default';
+  renderer.domElement.style.cursor =
+    hits.some(h => resolveTarget(h.object)) ? 'pointer' : 'default';
 }
 
 function onResize() {
@@ -175,7 +157,6 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// veilは必ずフェード（JS成否に関わらず）
 fadeVeil(600);
 init();
 animate();

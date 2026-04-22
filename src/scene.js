@@ -5,9 +5,17 @@ import { createDesk } from './desk.js';
 
 const ROOM_W = 18, ROOM_D = 16, ROOM_H = 4.2;
 
+// モバイルはLambert（PBR不要）、PCはStandard
+function makeMat(color, isMobile, roughness = 0.8) {
+  return isMobile
+    ? new THREE.MeshLambertMaterial({ color })
+    : new THREE.MeshStandardMaterial({ color, roughness });
+}
+
 export function buildScene(scene, cameraCtrl, audioSys, isMobile = false) {
-  scene.background = new THREE.Color(0xf0e8d8);
-  scene.fog = new THREE.FogExp2(0xf0e8d8, 0.04);
+  scene.background = new THREE.Color(isMobile ? 0xede5d4 : 0xf0e8d8);
+  // モバイルはfogなし（シェーダー複雑化を避ける）
+  if (!isMobile) scene.fog = new THREE.FogExp2(0xf0e8d8, 0.04);
 
   buildRoom(scene, isMobile);
   buildLighting(scene, isMobile);
@@ -18,13 +26,12 @@ export function buildScene(scene, cameraCtrl, audioSys, isMobile = false) {
   scene.add(blackboard);
 
   // Left bookshelves
-  const leftShelves = createShelves('left', cameraCtrl);
+  const leftShelves = createShelves('left', cameraCtrl, isMobile);
   leftShelves.position.set(-ROOM_W / 2 + 0.18, 0, -6.8);
   leftShelves.rotation.y = Math.PI / 2;
   scene.add(leftShelves);
 
-  // Right bookshelves
-  const rightShelves = createShelves('right', cameraCtrl);
+  const rightShelves = createShelves('right', cameraCtrl, isMobile);
   rightShelves.position.set(ROOM_W / 2 - 0.18, 0, -6.8);
   rightShelves.rotation.y = -Math.PI / 2;
   scene.add(rightShelves);
@@ -47,18 +54,15 @@ export function buildScene(scene, cameraCtrl, audioSys, isMobile = false) {
 }
 
 function buildRoom(scene, isMobile = false) {
-  const floorMat = new THREE.MeshStandardMaterial({
-    color: 0xe2d5be, roughness: 0.85,
-  });
-  const wallMat = new THREE.MeshStandardMaterial({
-    color: 0xf0e8d8, roughness: 0.92,
-  });
-  const ceilMat = new THREE.MeshStandardMaterial({
-    color: 0xf5f0e8, roughness: 0.9,
-  });
+  const floorMat = makeMat(0xe2d5be, isMobile, 0.85);
+  const wallMat  = makeMat(0xf0e8d8, isMobile, 0.92);
+  const ceilMat  = makeMat(0xf5f0e8, isMobile, 0.9);
 
-  // Floor with tile grid
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, ROOM_D, 18, 16), floorMat);
+  // Floor（モバイルは分割数を減らす）
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(ROOM_W, ROOM_D, isMobile ? 1 : 18, isMobile ? 1 : 16),
+    floorMat
+  );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);

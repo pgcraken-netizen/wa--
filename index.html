@@ -35,23 +35,21 @@
     }
     #veil { animation: veil-auto-fade 1.5s ease 4s forwards; }
 
-    /* エラー表示 */
-    #error-msg {
-      display: none;
+    /* ステータス／エラー表示 */
+    #status-msg {
+      display: block;
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: #5a4030;
-      font-size: 14px;
-      letter-spacing: 1px;
+      color: #8a7060;
+      font-size: 13px;
+      letter-spacing: 3px;
       text-align: center;
-      line-height: 2;
       z-index: 999;
-      background: rgba(245, 240, 230, 0.95);
-      padding: 24px 32px;
-      border-radius: 4px;
+      pointer-events: none;
     }
+    #status-msg:empty { display: none; }
 
     /* ── ヒント ── */
     #hint {
@@ -242,7 +240,7 @@
 <body>
   <div id="canvas-container"></div>
   <div id="veil"></div>
-  <div id="error-msg"></div>
+  <div id="status-msg">空間を展開中…</div>
   <div id="hint">気になるものへ 近づいてください</div>
   <div id="focus-label"></div>
   <button id="back-btn" onclick="window._goHome && window._goHome()">— 俯瞰する</button>
