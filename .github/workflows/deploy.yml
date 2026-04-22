@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [claude/reading-space-worldbuilding-EG1yS, main]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -39,3 +39,19 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           force_orphan: true
+
+      - name: Enable GitHub Pages (gh-pages branch)
+        run: |
+          gh api repos/${{ github.repository }}/pages \
+            -X POST \
+            -f source.branch=gh-pages \
+            -f "source.path=/" \
+            --silent 2>/dev/null || \
+          gh api repos/${{ github.repository }}/pages \
+            -X PUT \
+            -f source.branch=gh-pages \
+            -f "source.path=/" \
+            --silent 2>/dev/null || \
+          echo "Pages already configured or requires manual setup."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
