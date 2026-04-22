@@ -9,7 +9,7 @@
 
     body {
       overflow: hidden;
-      background: #0d0a06;
+      background: #f0e8d8;
       font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', Georgia, serif;
     }
 
@@ -25,7 +25,32 @@
       background: #0d0a06;
       pointer-events: none;
       z-index: 90;
+      opacity: 1;
       transition: opacity 4s ease;
+    }
+    /* CSS保険：JSが完全に落ちても5秒後にveilが消える */
+    @keyframes veil-auto-fade {
+      0%   { opacity: 1; }
+      100% { opacity: 0; pointer-events: none; }
+    }
+    #veil { animation: veil-auto-fade 1.5s ease 4s forwards; }
+
+    /* エラー表示 */
+    #error-msg {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #5a4030;
+      font-size: 14px;
+      letter-spacing: 1px;
+      text-align: center;
+      line-height: 2;
+      z-index: 999;
+      background: rgba(245, 240, 230, 0.95);
+      padding: 24px 32px;
+      border-radius: 4px;
     }
 
     /* ── ヒント ── */
@@ -217,6 +242,7 @@
 <body>
   <div id="canvas-container"></div>
   <div id="veil"></div>
+  <div id="error-msg"></div>
   <div id="hint">気になるものへ 近づいてください</div>
   <div id="focus-label"></div>
   <button id="back-btn" onclick="window._goHome && window._goHome()">— 俯瞰する</button>

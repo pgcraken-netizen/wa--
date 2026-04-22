@@ -5,12 +5,12 @@ import { createDesk } from './desk.js';
 
 const ROOM_W = 18, ROOM_D = 16, ROOM_H = 4.2;
 
-export function buildScene(scene, cameraCtrl, audioSys) {
+export function buildScene(scene, cameraCtrl, audioSys, isMobile = false) {
   scene.background = new THREE.Color(0xf0e8d8);
   scene.fog = new THREE.FogExp2(0xf0e8d8, 0.04);
 
-  buildRoom(scene);
-  buildLighting(scene);
+  buildRoom(scene, isMobile);
+  buildLighting(scene, isMobile);
 
   // Blackboard (back wall center)
   const blackboard = createBlackboard(cameraCtrl, audioSys);
@@ -37,16 +37,16 @@ export function buildScene(scene, cameraCtrl, audioSys) {
   // Noticeboard
   buildNoticeboard(scene, cameraCtrl);
 
-  // Reading tables
-  buildReadingTables(scene);
+  // Reading tables (skip on mobile to reduce draw calls)
+  if (!isMobile) buildReadingTables(scene);
 
   // Bell
-  buildBell(scene);
+  if (!isMobile) buildBell(scene);
 
   return scene;
 }
 
-function buildRoom(scene) {
+function buildRoom(scene, isMobile = false) {
   const floorMat = new THREE.MeshStandardMaterial({
     color: 0xe2d5be, roughness: 0.85,
   });
@@ -95,15 +95,17 @@ function buildRoom(scene) {
   ceiling.position.y = ROOM_H;
   scene.add(ceiling);
 
-  // Ceiling grid tiles (subtle)
-  const tileGeo = new THREE.PlaneGeometry(1.2, 1.2);
-  const tileMat = new THREE.MeshStandardMaterial({ color: 0xf8f4ec, roughness: 0.9 });
-  for (let x = -7; x <= 7; x += 1.25) {
-    for (let z = -7; z <= 7; z += 1.25) {
-      const tile = new THREE.Mesh(tileGeo, tileMat);
-      tile.rotation.x = Math.PI / 2;
-      tile.position.set(x, ROOM_H - 0.01, z);
-      scene.add(tile);
+  // Ceiling tiles — 1枚に統合（モバイルでdraw callを削減）
+  if (!isMobile) {
+    const tileGeo = new THREE.PlaneGeometry(1.2, 1.2);
+    const tileMat = new THREE.MeshStandardMaterial({ color: 0xf8f4ec, roughness: 0.9 });
+    for (let x = -6; x <= 6; x += 2.5) {
+      for (let z = -6; z <= 6; z += 2.5) {
+        const tile = new THREE.Mesh(tileGeo, tileMat);
+        tile.rotation.x = Math.PI / 2;
+        tile.position.set(x, ROOM_H - 0.01, z);
+        scene.add(tile);
+      }
     }
   }
 
@@ -162,30 +164,33 @@ function buildWindowFrame(scene, wx, wy, wz, mat) {
   });
 }
 
-function buildLighting(scene) {
+function buildLighting(scene, isMobile = false) {
   // Ambient
-  const ambient = new THREE.AmbientLight(0xfff8e8, 0.45);
+  const ambient = new THREE.AmbientLight(0xfff8e8, isMobile ? 0.75 : 0.45);
   scene.add(ambient);
 
-  // Main ceiling lights (warm)
-  [[-3, 0], [0, 0], [3, 0], [-3, -3], [3, -3]].forEach(([x, z]) => {
-    const light = new THREE.PointLight(0xfff5e0, 0.5, 8, 1.5);
+  // Main ceiling lights — モバイルは2灯に削減
+  const lightPositions = isMobile ? [[0, 0]] : [[-3, 0], [0, 0], [3, 0], [-3, -3], [3, -3]];
+  lightPositions.forEach(([x, z]) => {
+    const light = new THREE.PointLight(0xfff5e0, isMobile ? 1.0 : 0.5, 10, 1.5);
     light.position.set(x, 3.9, z);
     scene.add(light);
   });
 
-  // Window light (directional, from left-outside)
+  // Window light (directional)
   const sunLight = new THREE.DirectionalLight(0xfff8e8, 0.9);
   sunLight.position.set(-6, 4, 1);
-  sunLight.castShadow = true;
-  sunLight.shadow.mapSize.width = 1024;
-  sunLight.shadow.mapSize.height = 1024;
-  sunLight.shadow.camera.near = 0.5;
-  sunLight.shadow.camera.far = 30;
-  sunLight.shadow.camera.left  = -12;
-  sunLight.shadow.camera.right =  12;
-  sunLight.shadow.camera.top   =  8;
-  sunLight.shadow.camera.bottom = -8;
+  if (!isMobile) {
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 512;
+    sunLight.shadow.mapSize.height = 512;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 30;
+    sunLight.shadow.camera.left  = -12;
+    sunLight.shadow.camera.right =  12;
+    sunLight.shadow.camera.top   =  8;
+    sunLight.shadow.camera.bottom = -8;
+  }
   scene.add(sunLight);
 
   // Time-based tint
