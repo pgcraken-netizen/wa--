@@ -2,23 +2,38 @@ import * as THREE from 'three';
 import { CameraController } from './camera.js';
 import { AudioSystem } from './audio.js';
 import { buildScene } from './scene.js';
+import { buildMobileScene } from './mobile-scene.js';
 import { setupOverlay } from './overlay.js';
+
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 let renderer, scene, camera, cameraCtrl, audioSys, clock;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-let lastHoverTarget = null;
+
+function setStatus(msg) {
+  const el = document.getElementById('status-msg');
+  if (el) el.textContent = msg;
+}
 
 function init() {
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.85;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  document.getElementById('canvas-container').appendChild(renderer.domElement);
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: !isMobile, powerPreference: 'low-power' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+    renderer.shadowMap.enabled = false;
+    if (!isMobile) {
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.85;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+  } catch (e) {
+    setStatus('WebGLが使用できません');
+    return;
+  }
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 60);
@@ -26,11 +41,21 @@ function init() {
   camera.lookAt(0, 1.5, 0);
 
   cameraCtrl = new CameraController(camera);
-  audioSys = new AudioSystem();
   clock = new THREE.Clock();
 
-  buildScene(scene, cameraCtrl, audioSys);
-  setupOverlay(scene, cameraCtrl, audioSys);
+  setStatus('');
+
+  try {
+    if (isMobile) {
+      buildMobileScene(scene, cameraCtrl);
+    } else {
+      audioSys = new AudioSystem();
+      buildScene(scene, cameraCtrl, audioSys);
+    }
+    setupOverlay(scene, cameraCtrl, audioSys);
+  } catch (e) {
+    console.error('Scene build error:', e);
+  }
 
   window._goHome = () => cameraCtrl.goHome();
 
@@ -46,14 +71,15 @@ function entrance() {
   const veil = document.getElementById('veil');
   const hint = document.getElementById('hint');
 
-  // Slowly fade in - "目が慣れる"
   veil.style.opacity = '1';
   setTimeout(() => {
     veil.style.opacity = '0';
     setTimeout(() => {
       veil.style.pointerEvents = 'none';
-      hint.classList.add('show');
-      setTimeout(() => hint.classList.remove('show'), 5000);
+      if (hint) {
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 5000);
+      }
     }, 4000);
   }, 600);
 }
@@ -88,7 +114,6 @@ function onClick(e) {
     }
   }
 
-  // Click on empty → go home
   if (cameraCtrl.currentPreset !== 'home') {
     cameraCtrl.goHome();
   }
@@ -111,10 +136,7 @@ function onMouseMove(e) {
 
   let found = false;
   for (const hit of hits) {
-    if (resolveTarget(hit.object)) {
-      found = true;
-      break;
-    }
+    if (resolveTarget(hit.object)) { found = true; break; }
   }
   renderer.domElement.style.cursor = found ? 'pointer' : 'default';
 }
@@ -132,12 +154,13 @@ function animate() {
 
   cameraCtrl.update(delta);
 
-  // World updates
-  scene.traverse(obj => {
-    if (obj.userData && obj.userData.update) {
-      obj.userData.update(elapsed, delta);
-    }
-  });
+  if (!isMobile) {
+    scene.traverse(obj => {
+      if (obj.userData && obj.userData.update) {
+        obj.userData.update(elapsed, delta);
+      }
+    });
+  }
 
   renderer.render(scene, camera);
 }

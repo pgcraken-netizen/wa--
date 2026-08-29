@@ -202,6 +202,20 @@
     }
     .bm-close:hover { color: white; }
 
+    /* ── ステータス ── */
+    #status-msg {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(138, 112, 96, 0.85);
+      font-size: 14px;
+      letter-spacing: 4px;
+      pointer-events: none;
+      z-index: 999;
+    }
+    #status-msg:empty { display: none; }
+
     /* ── 棚への反映アニメ ── */
     #shelf-flash {
       position: fixed;
@@ -221,6 +235,7 @@
   <div id="focus-label"></div>
   <button id="back-btn" onclick="window._goHome && window._goHome()">— 俯瞰する</button>
   <div id="shelf-flash"></div>
+  <div id="status-msg">空間を展開中…</div>
 
   <!-- しおりオーバーレイ -->
   <div id="bookmark-overlay">
